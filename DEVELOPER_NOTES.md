@@ -2,7 +2,7 @@
 
 ## 1. Create local environment
 
-1. Copy `/home/runner/work/agentos-modal-vm/agentos-modal-vm/example.env` to `/home/runner/work/agentos-modal-vm/agentos-modal-vm/.env`.
+1. From the repository root, copy `example.env` to `.env`.
 2. Keep `RUNTIME_ENV=dev` for local Docker validation.
 3. Set `OPENAI_API_KEY` and any optional provider metadata you want to track.
 4. Before any public deployment, switch `RUNTIME_ENV` to `prd` and add either `JWT_VERIFICATION_KEY` or `JWT_JWKS_FILE`.
@@ -10,7 +10,6 @@
 ## 2. Run the local Docker stack
 
 ```bash
-cd /home/runner/work/agentos-modal-vm/agentos-modal-vm
 docker compose up -d --build
 ```
 
@@ -21,7 +20,6 @@ docker compose up -d --build
 ## 3. Run the MCP end-to-end smoke check
 
 ```bash
-cd /home/runner/work/agentos-modal-vm/agentos-modal-vm
 ./scripts/mcp_check.sh
 ```
 
@@ -36,7 +34,6 @@ Optional custom probe:
 ### First deploy / provisioning
 
 ```bash
-cd /home/runner/work/agentos-modal-vm/agentos-modal-vm
 ./scripts/modal/up.sh
 ```
 
@@ -52,7 +49,6 @@ What it does:
 ### Sync environment changes
 
 ```bash
-cd /home/runner/work/agentos-modal-vm/agentos-modal-vm
 ./scripts/modal/env-sync.sh
 ```
 
@@ -61,14 +57,12 @@ Use `./scripts/modal/env-sync.sh .env` if you intentionally want to sync the loc
 ### Rolling redeploy
 
 ```bash
-cd /home/runner/work/agentos-modal-vm/agentos-modal-vm
 ./scripts/modal/redeploy.sh
 ```
 
 ### Teardown
 
 ```bash
-cd /home/runner/work/agentos-modal-vm/agentos-modal-vm
 ./scripts/modal/down.sh
 ```
 
