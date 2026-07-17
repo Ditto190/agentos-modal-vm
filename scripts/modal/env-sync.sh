@@ -30,6 +30,26 @@ NC='\033[0m'
 
 ENV_FILE="${1:-.env.production}"
 
+confirm_dev_runtime_for_modal() {
+    if [[ "${RUNTIME_ENV:-prd}" != "dev" ]]; then
+        return
+    fi
+    echo ""
+    echo -e "${ORANGE}▸${NC} ${BOLD}RUNTIME_ENV=dev${NC} — JWT auth is disabled in this mode."
+    echo -e "${DIM}Use .env.production with RUNTIME_ENV=prd for a public deployment.${NC}"
+    if [[ ! -t 0 ]]; then
+        echo "Refusing non-interactive Modal secret sync with RUNTIME_ENV=dev."
+        echo "Set RUNTIME_ENV=prd (recommended) or rerun interactively to confirm a dev-only sync."
+        exit 1
+    fi
+    printf "Continue syncing an unauthenticated dev config to Modal? [y/N] "
+    IFS= read -r CONFIRM_DEV
+    if [[ ! "$CONFIRM_DEV" =~ ^[Yy]$ ]]; then
+        echo "Aborted. Update your env file to RUNTIME_ENV=prd before syncing public secrets."
+        exit 1
+    fi
+}
+
 if [[ ! -f "$ENV_FILE" ]]; then
     echo "File not found: $ENV_FILE"
     echo "Usage: $0 [path/to/env] (default: .env.production)"
@@ -82,8 +102,11 @@ ${line}"
             ;;
         *)
             if [[ "$current_key" == "PGSSLMODE" ]]; then
-                validate_pgsslmode "$current_value"
+                validate_pgsslmode "$current_value" "scripts/modal/env-sync.sh"
                 pgsslmode_set=1
+            fi
+            if [[ "$current_key" == "RUNTIME_ENV" ]]; then
+                RUNTIME_ENV="$current_value"
             fi
             echo -e "${DIM}  Setting ${current_key}${NC}"
             SECRET_ARGS+=("${current_key}=${current_value}")
@@ -99,6 +122,8 @@ if [[ "$count" -eq 0 ]]; then
     echo "Nothing to sync from ${ENV_FILE}."
     exit 1
 fi
+
+confirm_dev_runtime_for_modal
 
 # Neon requires TLS; libpq honors PGSSLMODE so the portable core needs no change.
 if [[ -z "$pgsslmode_set" ]]; then

@@ -142,10 +142,30 @@ ${line}"
     export JWT_VERIFICATION_KEY
 }
 
+confirm_dev_runtime_for_modal() {
+    if [[ "${RUNTIME_ENV:-prd}" != "dev" ]]; then
+        return
+    fi
+    echo ""
+    echo -e "${ORANGE}▸${NC} ${BOLD}RUNTIME_ENV=dev${NC} — JWT auth is disabled in this mode."
+    echo -e "${DIM}Use .env.production with RUNTIME_ENV=prd for a public deployment.${NC}"
+    if [[ ! -t 0 ]]; then
+        echo "Refusing non-interactive Modal deploy with RUNTIME_ENV=dev."
+        echo "Set RUNTIME_ENV=prd (recommended) or rerun interactively to confirm a dev-only deploy."
+        exit 1
+    fi
+    printf "Continue with an unauthenticated dev deploy? [y/N] "
+    IFS= read -r CONFIRM_DEV
+    if [[ ! "$CONFIRM_DEV" =~ ^[Yy]$ ]]; then
+        echo "Aborted. Update your env file to RUNTIME_ENV=prd before deploying publicly."
+        exit 1
+    fi
+}
+
 # (Re)write the agentos-secrets Modal secret from the current environment.
 write_modal_secret() {
     local pgsslmode_value="${PGSSLMODE:-require}"
-    validate_pgsslmode "$pgsslmode_value"
+    validate_pgsslmode "$pgsslmode_value" "scripts/modal/up.sh"
     local args=(
         "OPENAI_API_KEY=${OPENAI_API_KEY}"
         "RUNTIME_ENV=${RUNTIME_ENV:-prd}"
@@ -184,6 +204,7 @@ if [[ -n "$ENV_FILE" ]]; then
     load_env_file "$ENV_FILE"
     echo -e "${DIM}Loaded ${ENV_FILE}${NC}"
 fi
+confirm_dev_runtime_for_modal
 
 # Preflight
 if ! command -v modal &> /dev/null; then

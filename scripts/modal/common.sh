@@ -4,7 +4,8 @@ validate_pgsslmode() {
     case "$1" in
         disable|allow|prefer|require|verify-ca|verify-full) ;;
         *)
-            echo "Invalid PGSSLMODE: $1"
+            local source_name="${2:-modal script}"
+            echo "Error in ${source_name}: invalid PGSSLMODE: $1"
             echo "Expected one of: disable, allow, prefer, require, verify-ca, verify-full"
             exit 1
             ;;
