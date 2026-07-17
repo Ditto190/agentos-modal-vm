@@ -25,6 +25,17 @@ DIM='\033[2m'
 BOLD='\033[1m'
 NC='\033[0m'
 
+validate_pgsslmode() {
+    case "$1" in
+        disable|allow|prefer|require|verify-ca|verify-full) ;;
+        *)
+            echo "Invalid PGSSLMODE: $1"
+            echo "Expected one of: disable, allow, prefer, require, verify-ca, verify-full"
+            exit 1
+            ;;
+    esac
+}
+
 ENV_FILE="${1:-.env.production}"
 
 if [[ ! -f "$ENV_FILE" ]]; then
@@ -49,7 +60,7 @@ SECRET_ARGS=()
 count=0
 current_key=""
 current_value=""
-has_pgsslmode=0
+pgsslmode_set=""
 
 while IFS= read -r line || [[ -n "$line" ]]; do
     if [[ -z "$current_key" ]]; then
@@ -78,10 +89,13 @@ ${line}"
             # Provisioning config for the scripts, not app environment.
             ;;
         *)
+            if [[ "$current_key" == "PGSSLMODE" ]]; then
+                validate_pgsslmode "$current_value"
+                pgsslmode_set=1
+            fi
             echo -e "${DIM}  Setting ${current_key}${NC}"
             SECRET_ARGS+=("${current_key}=${current_value}")
             count=$((count + 1))
-            [[ "$current_key" == "PGSSLMODE" ]] && has_pgsslmode=1
             ;;
     esac
 
@@ -95,7 +109,7 @@ if [[ "$count" -eq 0 ]]; then
 fi
 
 # Neon requires TLS; libpq honors PGSSLMODE so the portable core needs no change.
-if [[ "$has_pgsslmode" -eq 0 ]]; then
+if [[ -z "$pgsslmode_set" ]]; then
     SECRET_ARGS+=("PGSSLMODE=require")
 fi
 

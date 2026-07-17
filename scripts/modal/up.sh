@@ -139,9 +139,21 @@ ${line}"
     export JWT_VERIFICATION_KEY
 }
 
+validate_pgsslmode() {
+    case "$1" in
+        disable|allow|prefer|require|verify-ca|verify-full) ;;
+        *)
+            echo "Invalid PGSSLMODE: $1"
+            echo "Expected one of: disable, allow, prefer, require, verify-ca, verify-full"
+            exit 1
+            ;;
+    esac
+}
+
 # (Re)write the agentos-secrets Modal secret from the current environment.
 write_modal_secret() {
     local pgsslmode_value="${PGSSLMODE:-require}"
+    validate_pgsslmode "$pgsslmode_value"
     local args=(
         "OPENAI_API_KEY=${OPENAI_API_KEY}"
         "RUNTIME_ENV=${RUNTIME_ENV:-prd}"
