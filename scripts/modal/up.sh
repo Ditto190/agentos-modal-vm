@@ -141,6 +141,7 @@ ${line}"
 
 # (Re)write the agentos-secrets Modal secret from the current environment.
 write_modal_secret() {
+    local pgsslmode="${PGSSLMODE:-require}"
     local args=(
         "OPENAI_API_KEY=${OPENAI_API_KEY}"
         "RUNTIME_ENV=${RUNTIME_ENV:-prd}"
@@ -149,15 +150,26 @@ write_modal_secret() {
         "DB_USER=${DB_USER}"
         "DB_PASS=${DB_PASS}"
         "DB_DATABASE=${DB_DATABASE}"
-        "PGSSLMODE=require"
+        "DB_DRIVER=${DB_DRIVER:-postgresql+psycopg}"
+        "PGSSLMODE=${pgsslmode}"
     )
     [[ -n "$AGENTOS_URL" ]] && args+=("AGENTOS_URL=${AGENTOS_URL}")
     [[ -n "$MCP_CONNECT_SECRET" ]] && args+=("MCP_CONNECT_SECRET=${MCP_CONNECT_SECRET}")
+    [[ -n "$AGENTOS_MCP_SIGNING_KEY" ]] && args+=("AGENTOS_MCP_SIGNING_KEY=${AGENTOS_MCP_SIGNING_KEY}")
     [[ -n "$JWT_VERIFICATION_KEY" ]] && args+=("JWT_VERIFICATION_KEY=${JWT_VERIFICATION_KEY}")
     [[ -n "$JWT_JWKS_FILE" ]] && args+=("JWT_JWKS_FILE=${JWT_JWKS_FILE}")
     [[ -n "$PARALLEL_API_KEY" ]] && args+=("PARALLEL_API_KEY=${PARALLEL_API_KEY}")
     [[ -n "$SLACK_BOT_TOKEN" ]] && args+=("SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}")
     [[ -n "$SLACK_SIGNING_SECRET" ]] && args+=("SLACK_SIGNING_SECRET=${SLACK_SIGNING_SECRET}")
+    [[ -n "$DEFAULT_MODEL_PROVIDER" ]] && args+=("DEFAULT_MODEL_PROVIDER=${DEFAULT_MODEL_PROVIDER}")
+    [[ -n "$DEFAULT_MODEL_ID" ]] && args+=("DEFAULT_MODEL_ID=${DEFAULT_MODEL_ID}")
+    [[ -n "$DEFAULT_MODEL_BASE_URL" ]] && args+=("DEFAULT_MODEL_BASE_URL=${DEFAULT_MODEL_BASE_URL}")
+    [[ -n "$DEFAULT_MODEL_API_KEY_ENV" ]] && args+=("DEFAULT_MODEL_API_KEY_ENV=${DEFAULT_MODEL_API_KEY_ENV}")
+    [[ -n "$EMBEDDING_MODEL_PROVIDER" ]] && args+=("EMBEDDING_MODEL_PROVIDER=${EMBEDDING_MODEL_PROVIDER}")
+    [[ -n "$EMBEDDING_MODEL_ID" ]] && args+=("EMBEDDING_MODEL_ID=${EMBEDDING_MODEL_ID}")
+    [[ -n "$EMBEDDING_MODEL_BASE_URL" ]] && args+=("EMBEDDING_MODEL_BASE_URL=${EMBEDDING_MODEL_BASE_URL}")
+    [[ -n "$EMBEDDING_MODEL_API_KEY_ENV" ]] && args+=("EMBEDDING_MODEL_API_KEY_ENV=${EMBEDDING_MODEL_API_KEY_ENV}")
+    [[ -n "$VECTOR_DB_PROVIDER" ]] && args+=("VECTOR_DB_PROVIDER=${VECTOR_DB_PROVIDER}")
     modal secret create --force agentos-secrets "${args[@]}" > /dev/null
 }
 

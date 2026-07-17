@@ -9,7 +9,8 @@
 #      ./scripts/modal/env-sync.sh .env        # syncs .env instead
 #
 #    Rewrites the agentos-secrets Modal secret from the env file (every
-#    non-NEON_* key, plus PGSSLMODE=require for Neon TLS) and redeploys —
+#    non-NEON_* key, plus a default PGSSLMODE=require for Neon TLS when the
+#    env file doesn't set one) and redeploys —
 #    secrets are read at container start, so the redeploy is what applies
 #    them. Multi-line values (PEM-formatted JWT_VERIFICATION_KEY) are
 #    handled correctly.
@@ -48,6 +49,7 @@ SECRET_ARGS=()
 count=0
 current_key=""
 current_value=""
+has_pgsslmode=0
 
 while IFS= read -r line || [[ -n "$line" ]]; do
     if [[ -z "$current_key" ]]; then
@@ -79,6 +81,7 @@ ${line}"
             echo -e "${DIM}  Setting ${current_key}${NC}"
             SECRET_ARGS+=("${current_key}=${current_value}")
             count=$((count + 1))
+            [[ "$current_key" == "PGSSLMODE" ]] && has_pgsslmode=1
             ;;
     esac
 
@@ -92,7 +95,9 @@ if [[ "$count" -eq 0 ]]; then
 fi
 
 # Neon requires TLS; libpq honors PGSSLMODE so the portable core needs no change.
-SECRET_ARGS+=("PGSSLMODE=require")
+if [[ "$has_pgsslmode" -eq 0 ]]; then
+    SECRET_ARGS+=("PGSSLMODE=require")
+fi
 
 modal secret create --force agentos-secrets "${SECRET_ARGS[@]}" > /dev/null
 
