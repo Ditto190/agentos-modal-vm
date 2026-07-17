@@ -5,7 +5,7 @@
 1. From the repository root, copy `example.env` to `.env`.
 2. Keep `RUNTIME_ENV=dev` for local Docker validation.
 3. Set `OPENAI_API_KEY` and any optional provider metadata you want to track.
-4. Before any public deployment, switch `RUNTIME_ENV` to `prd` and add either `JWT_VERIFICATION_KEY` or `JWT_JWKS_FILE`.
+4. Later, before any public deployment, create or update `.env.production` with `RUNTIME_ENV=prd` and either `JWT_VERIFICATION_KEY` or `JWT_JWKS_FILE`.
 
 ## 2. Run the local Docker stack
 

@@ -27,6 +27,9 @@
 
 set -e
 
+CURR_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${CURR_DIR}/common.sh"
+
 # Colors
 ORANGE='\033[38;5;208m'
 DIM='\033[2m'
@@ -137,17 +140,6 @@ ${line}"
     pasted="${pasted%\'}"
     JWT_VERIFICATION_KEY="$pasted"
     export JWT_VERIFICATION_KEY
-}
-
-validate_pgsslmode() {
-    case "$1" in
-        disable|allow|prefer|require|verify-ca|verify-full) ;;
-        *)
-            echo "Invalid PGSSLMODE: $1"
-            echo "Expected one of: disable, allow, prefer, require, verify-ca, verify-full"
-            exit 1
-            ;;
-    esac
 }
 
 # (Re)write the agentos-secrets Modal secret from the current environment.
