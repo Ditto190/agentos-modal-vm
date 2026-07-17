@@ -27,6 +27,11 @@
 
 set -e
 
+# Each Modal script is an entrypoint, so it resolves its own directory before
+# sourcing the shared helper beside it.
+CURR_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${CURR_DIR}/common.sh"
+
 # Colors
 ORANGE='\033[38;5;208m'
 DIM='\033[2m'
@@ -139,8 +144,30 @@ ${line}"
     export JWT_VERIFICATION_KEY
 }
 
+confirm_dev_runtime_for_modal() {
+    if [[ "${RUNTIME_ENV:-prd}" != "dev" ]]; then
+        return
+    fi
+    echo ""
+    echo -e "${ORANGE}▸${NC} ${BOLD}RUNTIME_ENV=dev${NC} — JWT auth is disabled in this mode."
+    echo -e "${DIM}Use .env.production with RUNTIME_ENV=prd for a public deployment.${NC}"
+    if [[ ! -t 0 ]]; then
+        echo "Refusing non-interactive Modal deploy with RUNTIME_ENV=dev."
+        echo "Set RUNTIME_ENV=prd (recommended) or rerun interactively to confirm a dev-only deploy."
+        exit 1
+    fi
+    printf "Continue with an unauthenticated dev deploy? [y/N] "
+    IFS= read -r CONFIRM_DEV
+    if [[ ! "$CONFIRM_DEV" =~ ^[Yy]$ ]]; then
+        echo "Aborted. Update your env file to RUNTIME_ENV=prd before deploying publicly."
+        exit 1
+    fi
+}
+
 # (Re)write the agentos-secrets Modal secret from the current environment.
 write_modal_secret() {
+    local pgsslmode_value="${PGSSLMODE:-require}"
+    validate_pgsslmode "$pgsslmode_value" "scripts/modal/up.sh"
     local args=(
         "OPENAI_API_KEY=${OPENAI_API_KEY}"
         "RUNTIME_ENV=${RUNTIME_ENV:-prd}"
@@ -149,15 +176,26 @@ write_modal_secret() {
         "DB_USER=${DB_USER}"
         "DB_PASS=${DB_PASS}"
         "DB_DATABASE=${DB_DATABASE}"
-        "PGSSLMODE=require"
+        "DB_DRIVER=${DB_DRIVER:-postgresql+psycopg}"
+        "PGSSLMODE=${pgsslmode_value}"
     )
     [[ -n "$AGENTOS_URL" ]] && args+=("AGENTOS_URL=${AGENTOS_URL}")
     [[ -n "$MCP_CONNECT_SECRET" ]] && args+=("MCP_CONNECT_SECRET=${MCP_CONNECT_SECRET}")
+    [[ -n "$AGENTOS_MCP_SIGNING_KEY" ]] && args+=("AGENTOS_MCP_SIGNING_KEY=${AGENTOS_MCP_SIGNING_KEY}")
     [[ -n "$JWT_VERIFICATION_KEY" ]] && args+=("JWT_VERIFICATION_KEY=${JWT_VERIFICATION_KEY}")
     [[ -n "$JWT_JWKS_FILE" ]] && args+=("JWT_JWKS_FILE=${JWT_JWKS_FILE}")
     [[ -n "$PARALLEL_API_KEY" ]] && args+=("PARALLEL_API_KEY=${PARALLEL_API_KEY}")
     [[ -n "$SLACK_BOT_TOKEN" ]] && args+=("SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}")
     [[ -n "$SLACK_SIGNING_SECRET" ]] && args+=("SLACK_SIGNING_SECRET=${SLACK_SIGNING_SECRET}")
+    [[ -n "$DEFAULT_MODEL_PROVIDER" ]] && args+=("DEFAULT_MODEL_PROVIDER=${DEFAULT_MODEL_PROVIDER}")
+    [[ -n "$DEFAULT_MODEL_ID" ]] && args+=("DEFAULT_MODEL_ID=${DEFAULT_MODEL_ID}")
+    [[ -n "$DEFAULT_MODEL_BASE_URL" ]] && args+=("DEFAULT_MODEL_BASE_URL=${DEFAULT_MODEL_BASE_URL}")
+    [[ -n "$DEFAULT_MODEL_API_KEY_ENV" ]] && args+=("DEFAULT_MODEL_API_KEY_ENV=${DEFAULT_MODEL_API_KEY_ENV}")
+    [[ -n "$EMBEDDING_MODEL_PROVIDER" ]] && args+=("EMBEDDING_MODEL_PROVIDER=${EMBEDDING_MODEL_PROVIDER}")
+    [[ -n "$EMBEDDING_MODEL_ID" ]] && args+=("EMBEDDING_MODEL_ID=${EMBEDDING_MODEL_ID}")
+    [[ -n "$EMBEDDING_MODEL_BASE_URL" ]] && args+=("EMBEDDING_MODEL_BASE_URL=${EMBEDDING_MODEL_BASE_URL}")
+    [[ -n "$EMBEDDING_MODEL_API_KEY_ENV" ]] && args+=("EMBEDDING_MODEL_API_KEY_ENV=${EMBEDDING_MODEL_API_KEY_ENV}")
+    [[ -n "$VECTOR_DB_PROVIDER" ]] && args+=("VECTOR_DB_PROVIDER=${VECTOR_DB_PROVIDER}")
     modal secret create --force agentos-secrets "${args[@]}" > /dev/null
 }
 
@@ -168,6 +206,7 @@ if [[ -n "$ENV_FILE" ]]; then
     load_env_file "$ENV_FILE"
     echo -e "${DIM}Loaded ${ENV_FILE}${NC}"
 fi
+confirm_dev_runtime_for_modal
 
 # Preflight
 if ! command -v modal &> /dev/null; then

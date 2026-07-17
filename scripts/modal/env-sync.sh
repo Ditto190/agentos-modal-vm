@@ -9,7 +9,8 @@
 #      ./scripts/modal/env-sync.sh .env        # syncs .env instead
 #
 #    Rewrites the agentos-secrets Modal secret from the env file (every
-#    non-NEON_* key, plus PGSSLMODE=require for Neon TLS) and redeploys —
+#    non-NEON_* key, plus a default PGSSLMODE=require for Neon TLS when the
+#    env file doesn't set one) and redeploys —
 #    secrets are read at container start, so the redeploy is what applies
 #    them. Multi-line values (PEM-formatted JWT_VERIFICATION_KEY) are
 #    handled correctly.
@@ -18,6 +19,11 @@
 
 set -e
 
+# Each Modal script is an entrypoint, so it resolves its own directory before
+# sourcing the shared helper beside it.
+CURR_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${CURR_DIR}/common.sh"
+
 # Colors
 ORANGE='\033[38;5;208m'
 DIM='\033[2m'
@@ -25,6 +31,26 @@ BOLD='\033[1m'
 NC='\033[0m'
 
 ENV_FILE="${1:-.env.production}"
+
+confirm_dev_runtime_for_modal() {
+    if [[ "${RUNTIME_ENV:-prd}" != "dev" ]]; then
+        return
+    fi
+    echo ""
+    echo -e "${ORANGE}▸${NC} ${BOLD}RUNTIME_ENV=dev${NC} — JWT auth is disabled in this mode."
+    echo -e "${DIM}Use .env.production with RUNTIME_ENV=prd for a public deployment.${NC}"
+    if [[ ! -t 0 ]]; then
+        echo "Refusing non-interactive Modal secret sync with RUNTIME_ENV=dev."
+        echo "Set RUNTIME_ENV=prd (recommended) or rerun interactively to confirm a dev-only sync."
+        exit 1
+    fi
+    printf "Continue syncing an unauthenticated dev config to Modal? [y/N] "
+    IFS= read -r CONFIRM_DEV
+    if [[ ! "$CONFIRM_DEV" =~ ^[Yy]$ ]]; then
+        echo "Aborted. Update your env file to RUNTIME_ENV=prd before syncing public secrets."
+        exit 1
+    fi
+}
 
 if [[ ! -f "$ENV_FILE" ]]; then
     echo "File not found: $ENV_FILE"
@@ -48,6 +74,7 @@ SECRET_ARGS=()
 count=0
 current_key=""
 current_value=""
+has_pgsslmode=""
 
 while IFS= read -r line || [[ -n "$line" ]]; do
     if [[ -z "$current_key" ]]; then
@@ -76,6 +103,15 @@ ${line}"
             # Provisioning config for the scripts, not app environment.
             ;;
         *)
+            case "$current_key" in
+                PGSSLMODE)
+                    validate_pgsslmode "$current_value" "scripts/modal/env-sync.sh"
+                    has_pgsslmode=1
+                    ;;
+                RUNTIME_ENV)
+                    RUNTIME_ENV="$current_value"
+                    ;;
+            esac
             echo -e "${DIM}  Setting ${current_key}${NC}"
             SECRET_ARGS+=("${current_key}=${current_value}")
             count=$((count + 1))
@@ -91,8 +127,12 @@ if [[ "$count" -eq 0 ]]; then
     exit 1
 fi
 
+confirm_dev_runtime_for_modal
+
 # Neon requires TLS; libpq honors PGSSLMODE so the portable core needs no change.
-SECRET_ARGS+=("PGSSLMODE=require")
+if [[ -z "$has_pgsslmode" ]]; then
+    SECRET_ARGS+=("PGSSLMODE=require")
+fi
 
 modal secret create --force agentos-secrets "${SECRET_ARGS[@]}" > /dev/null
 

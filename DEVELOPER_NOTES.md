@@ -1,0 +1,76 @@
+# Developer Notes
+
+## 1. Create local environment
+
+**Production warning:** do not point Modal at a `.env`/`.env.production` file that still has `RUNTIME_ENV=dev` unless you intentionally want JWT auth disabled.
+
+1. From the repository root, copy `example.env` to `.env`.
+2. Keep `RUNTIME_ENV=dev` for local Docker validation.
+3. Set `OPENAI_API_KEY` and any optional provider metadata you want to track.
+4. Later, before any public deployment, create or update `.env.production` with `RUNTIME_ENV=prd` and either `JWT_VERIFICATION_KEY` or `JWT_JWKS_FILE`.
+
+## 2. Run the local Docker stack
+
+```bash
+docker compose up -d --build
+```
+
+- API: `http://127.0.0.1:8000`
+- MCP: `http://127.0.0.1:8000/mcp`
+- Docs: `http://127.0.0.1:8000/docs`
+
+## 3. Run the MCP end-to-end smoke check
+
+```bash
+./scripts/mcp_check.sh
+```
+
+Optional custom probe:
+
+```bash
+./scripts/mcp_check.sh "What does this platform expose over MCP?"
+```
+
+## 4. Modal deployment pipeline
+
+### First deploy / provisioning
+
+```bash
+./scripts/modal/up.sh
+```
+
+What it does:
+
+1. Loads `.env.production` when present, otherwise `.env`.
+2. Reuses an existing external Postgres/pgvector config or provisions a Neon project.
+3. Writes the `agentos-secrets` Modal secret.
+4. Deploys `modal_app.py` with an always-warm single-container boundary (`min_containers=1`, `max_containers=1`).
+5. Pins `AGENTOS_URL`, generates `MCP_CONNECT_SECRET` when missing, and prompts for production JWT verification if needed.
+6. Performs a second deploy so the final secret set is live.
+
+### Sync environment changes
+
+```bash
+./scripts/modal/env-sync.sh
+```
+
+Use `./scripts/modal/env-sync.sh .env` if you intentionally want to sync the local env file instead of `.env.production`.
+
+### Rolling redeploy
+
+```bash
+./scripts/modal/redeploy.sh
+```
+
+### Teardown
+
+```bash
+./scripts/modal/down.sh
+```
+
+## 5. Production checklist
+
+- Keep `RUNTIME_ENV=prd` in the synced production env.
+- Provide `JWT_VERIFICATION_KEY` or `JWT_JWKS_FILE`.
+- Keep `PGSSLMODE=require` for Neon unless your external database provider documents a different TLS mode.
+- Confirm the public Modal URL responds before connecting MCP clients.
