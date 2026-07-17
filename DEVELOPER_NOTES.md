@@ -2,6 +2,8 @@
 
 ## 1. Create local environment
 
+**Production warning:** do not point Modal at a `.env`/`.env.production` file that still has `RUNTIME_ENV=dev` unless you intentionally want JWT auth disabled.
+
 1. From the repository root, copy `example.env` to `.env`.
 2. Keep `RUNTIME_ENV=dev` for local Docker validation.
 3. Set `OPENAI_API_KEY` and any optional provider metadata you want to track.

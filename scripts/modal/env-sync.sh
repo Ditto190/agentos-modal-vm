@@ -19,6 +19,8 @@
 
 set -e
 
+# Each Modal script is an entrypoint, so it resolves its own directory before
+# sourcing the shared helper beside it.
 CURR_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${CURR_DIR}/common.sh"
 
@@ -72,7 +74,7 @@ SECRET_ARGS=()
 count=0
 current_key=""
 current_value=""
-pgsslmode_set=""
+has_pgsslmode=""
 
 while IFS= read -r line || [[ -n "$line" ]]; do
     if [[ -z "$current_key" ]]; then
@@ -101,13 +103,15 @@ ${line}"
             # Provisioning config for the scripts, not app environment.
             ;;
         *)
-            if [[ "$current_key" == "PGSSLMODE" ]]; then
-                validate_pgsslmode "$current_value" "scripts/modal/env-sync.sh"
-                pgsslmode_set=1
-            fi
-            if [[ "$current_key" == "RUNTIME_ENV" ]]; then
-                RUNTIME_ENV="$current_value"
-            fi
+            case "$current_key" in
+                PGSSLMODE)
+                    validate_pgsslmode "$current_value" "scripts/modal/env-sync.sh"
+                    has_pgsslmode=1
+                    ;;
+                RUNTIME_ENV)
+                    RUNTIME_ENV="$current_value"
+                    ;;
+            esac
             echo -e "${DIM}  Setting ${current_key}${NC}"
             SECRET_ARGS+=("${current_key}=${current_value}")
             count=$((count + 1))
@@ -126,7 +130,7 @@ fi
 confirm_dev_runtime_for_modal
 
 # Neon requires TLS; libpq honors PGSSLMODE so the portable core needs no change.
-if [[ -z "$pgsslmode_set" ]]; then
+if [[ -z "$has_pgsslmode" ]]; then
     SECRET_ARGS+=("PGSSLMODE=require")
 fi
 

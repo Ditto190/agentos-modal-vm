@@ -27,6 +27,8 @@
 
 set -e
 
+# Each Modal script is an entrypoint, so it resolves its own directory before
+# sourcing the shared helper beside it.
 CURR_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${CURR_DIR}/common.sh"
 
