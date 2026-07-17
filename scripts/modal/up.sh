@@ -141,7 +141,7 @@ ${line}"
 
 # (Re)write the agentos-secrets Modal secret from the current environment.
 write_modal_secret() {
-    local pgsslmode="${PGSSLMODE:-require}"
+    local pgsslmode_value="${PGSSLMODE:-require}"
     local args=(
         "OPENAI_API_KEY=${OPENAI_API_KEY}"
         "RUNTIME_ENV=${RUNTIME_ENV:-prd}"
@@ -151,7 +151,7 @@ write_modal_secret() {
         "DB_PASS=${DB_PASS}"
         "DB_DATABASE=${DB_DATABASE}"
         "DB_DRIVER=${DB_DRIVER:-postgresql+psycopg}"
-        "PGSSLMODE=${pgsslmode}"
+        "PGSSLMODE=${pgsslmode_value}"
     )
     [[ -n "$AGENTOS_URL" ]] && args+=("AGENTOS_URL=${AGENTOS_URL}")
     [[ -n "$MCP_CONNECT_SECRET" ]] && args+=("MCP_CONNECT_SECRET=${MCP_CONNECT_SECRET}")
